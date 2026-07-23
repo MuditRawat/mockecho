@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { UserProfile, InterviewSession, DashboardStats, InterviewQuestion, AnswerSubmission, OverallFeedback } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { API_BASE_URL } from '../lib/api';
 
 interface AppContextType {
   user: any;
@@ -1490,7 +1491,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .slice(-30);
 
       // 1. Generate questions from Gemini AI
-      const res = await fetch('/api/generate-interview', {
+      const res = await fetch(`${API_BASE_URL}/api/generate-interview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1599,7 +1600,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!question) throw new Error('Question not found in active session.');
 
       // 1. Grade response via Gemini AI on server
-      const res = await fetch('/api/evaluate-answer', {
+      const res = await fetch(`${API_BASE_URL}/api/evaluate-answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1673,7 +1674,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       // 1. Compile final metrics via backend
-      const res = await fetch('/api/evaluate-interview', {
+      const res = await fetch(`${API_BASE_URL}/api/evaluate-interview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

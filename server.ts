@@ -14,13 +14,38 @@ dotenv.config();
 
 const app = express();
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+];
+
 // Configure CORS to allow requests from Vercel frontend or local development
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    
+    const isLocal = allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
+    const isVercel = origin.endsWith(".vercel.app") || origin.includes("vercel.app");
+    const isWorkspace = origin.includes("asia-southeast1.run.app") || origin.includes("run.app");
+
+    if (isLocal || isVercel || isWorkspace) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// Request Logger middleware
+app.use((req, res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.url}`);
+  next();
+});
 
 app.use(express.json());
 
@@ -549,6 +574,7 @@ function enforceMcqRules(questions: any[], format: string, requestedCount: numbe
 
 // API: Generate Interview Questions in a single request
 app.post("/api/generate-interview", async (req, res) => {
+  console.log("[API] generate-interview started");
   try {
     const { role, subject, difficulty, questionCount, format, previousQuestions } = req.body;
     if (!role || !subject || !difficulty || !questionCount) {
@@ -680,15 +706,22 @@ Ensure the output is 100% valid JSON, formatted without code block wrappers or e
     const parsedQuestions = enforceMcqRules(rawQuestions, format, numCount);
     res.json({ questions: parsedQuestions });
   } catch (err: any) {
-    console.log("[Interview API] Gemini service rate-limited or unavailable. Serving smart fallback question set.");
-    const { role = "Software Engineer", subject = "General Tech", difficulty = "medium", questionCount = 5, format = "mixed", previousQuestions } = req.body || {};
-    const fallbackQuestions = generateFallbackQuestions(role, subject, difficulty, questionCount, format, previousQuestions);
-    res.json({ questions: fallbackQuestions });
+    console.error("[API ERROR] generate-interview failed:", err.stack || err);
+    try {
+      console.log("[Interview API] Gemini service rate-limited or unavailable. Serving smart fallback question set.");
+      const { role = "Software Engineer", subject = "General Tech", difficulty = "medium", questionCount = 5, format = "mixed", previousQuestions } = req.body || {};
+      const fallbackQuestions = generateFallbackQuestions(role, subject, difficulty, questionCount, format, previousQuestions);
+      res.json({ questions: fallbackQuestions });
+    } catch (fallbackErr: any) {
+      console.error("[API ERROR] Fallback question generation failed:", fallbackErr.stack || fallbackErr);
+      res.status(500).json({ error: "Failed to generate questions or fallback set." });
+    }
   }
 });
 
 // API: Evaluate an individual answer
 app.post("/api/evaluate-answer", async (req, res) => {
+  console.log("[API] evaluate-answer started");
   try {
     const { question, userAnswer, timeTakenSeconds } = req.body;
     if (!question) {
@@ -846,15 +879,22 @@ Ensure the output is 100% valid JSON, formatted without code block wrappers or e
     const feedback = JSON.parse(text);
     res.json({ feedback });
   } catch (err: any) {
-    console.log("[Interview API] Gemini service rate-limited or unavailable. Serving smart fallback answer evaluation.");
-    const { question, userAnswer, timeTakenSeconds = 30 } = req.body || {};
-    const fallbackFeedback = generateFallbackAnswerEvaluation(question, userAnswer, timeTakenSeconds);
-    res.json({ feedback: fallbackFeedback });
+    console.error("[API ERROR] evaluate-answer failed:", err.stack || err);
+    try {
+      console.log("[Interview API] Gemini service rate-limited or unavailable. Serving smart fallback answer evaluation.");
+      const { question, userAnswer, timeTakenSeconds = 30 } = req.body || {};
+      const fallbackFeedback = generateFallbackAnswerEvaluation(question, userAnswer, timeTakenSeconds);
+      res.json({ feedback: fallbackFeedback });
+    } catch (fallbackErr: any) {
+      console.error("[API ERROR] Fallback answer evaluation failed:", fallbackErr.stack || fallbackErr);
+      res.status(500).json({ error: "Failed to evaluate answer or fallback." });
+    }
   }
 });
 
 // API: Overall Interview Evaluation
 app.post("/api/evaluate-interview", async (req, res) => {
+  console.log("[API] evaluate-interview started");
   try {
     const { role, subject, difficulty, questions, answers } = req.body;
     if (!questions || !answers) {
@@ -961,15 +1001,22 @@ Ensure the output is 100% valid JSON, formatted without code block wrappers or e
     const overallFeedback = JSON.parse(text);
     res.json({ overallFeedback });
   } catch (err: any) {
-    console.log("[Interview API] Gemini service rate-limited or unavailable. Serving smart fallback interview report.");
-    const { role = "Software Engineer", subject = "General Tech", difficulty = "medium", questions = [], answers = {} } = req.body || {};
-    const fallbackOverall = generateFallbackInterviewEvaluation(role, subject, difficulty, questions, answers);
-    res.json({ overallFeedback: fallbackOverall });
+    console.error("[API ERROR] evaluate-interview failed:", err.stack || err);
+    try {
+      console.log("[Interview API] Gemini service rate-limited or unavailable. Serving smart fallback interview report.");
+      const { role = "Software Engineer", subject = "General Tech", difficulty = "medium", questions = [], answers = {} } = req.body || {};
+      const fallbackOverall = generateFallbackInterviewEvaluation(role, subject, difficulty, questions, answers);
+      res.json({ overallFeedback: fallbackOverall });
+    } catch (fallbackErr: any) {
+      console.error("[API ERROR] Fallback overall interview evaluation failed:", fallbackErr.stack || fallbackErr);
+      res.status(500).json({ error: "Failed to create overall report or fallback." });
+    }
   }
 });
 
 // API: Handle Supabase OAuth callback
 app.get("/auth/callback", async (req, res, next) => {
+  console.log("[API] auth/callback started");
   try {
     const code = req.query.code as string;
     const tokenHash = req.query.token_hash as string;
@@ -1085,7 +1132,7 @@ app.get("/auth/callback", async (req, res, next) => {
       </html>
     `);
   } catch (err: any) {
-    console.error("OAuth callback error:", err);
+    console.error("[API ERROR] OAuth callback error:", err.stack || err);
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -1144,6 +1191,13 @@ app.get("/auth/callback", async (req, res, next) => {
 
 // Mount Vite middleware for development preview in AI Studio
 async function startServer() {
+  // Startup environment check
+  console.log("--- STARTUP ENVIRONMENT CHECK ---");
+  console.log(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? "configured" : "missing"}`);
+  console.log(`SUPABASE_URL: ${(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) ? "configured" : "missing"}`);
+  console.log(`SUPABASE_ANON_KEY: ${(process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY) ? "configured" : "missing"}`);
+  console.log("---------------------------------");
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
