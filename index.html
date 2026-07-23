@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none'%3E%3Cpath d='M 10,12 H 17 L 23,18 V 25 L 17,19 V 36 H 10 Z' fill='%232D5B4A'/%3E%3Cpath d='M 38,16 H 31 L 25,22 V 29 L 31,23 V 40 H 38 Z' fill='%23C46A4A'/%3E%3C/svg%3E" />
+    <title>MockEcho — AI Mock Interview Panel Practice</title>
+    <script>
+      (function() {
+        try {
+          var isExplicit = localStorage.getItem('mockecho_theme_explicit') === 'true';
+          var stored = localStorage.getItem('mockecho_theme');
+          var theme = (isExplicit && (stored === 'light' || stored === 'dark' || stored === 'system')) ? stored : 'system';
+          var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

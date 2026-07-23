@@ -1,0 +1,10 @@
+{
+  "name": "MockEcho",
+  "description": "AI-powered voice and text mock interview preparation platform with real-time feedback.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

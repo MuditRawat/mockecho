@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Lora", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-bg-warm: var(--color-bg-warm-val);
+  --color-card-warm: var(--color-card-warm-val);
+  --color-text-charcoal: var(--color-text-charcoal-val);
+  --color-text-soft: var(--color-text-soft-val);
+  --color-accent-forest: var(--color-accent-forest-val);
+  --color-accent-clay: var(--color-accent-clay-val);
+  --color-border-warm: var(--color-border-warm-val);
+}
+
+:root {
+  --color-bg-warm-val: #FCFBF8;
+  --color-card-warm-val: #FFFFFF;
+  --color-text-charcoal-val: #161616;
+  --color-text-soft-val: #666666;
+  --color-accent-forest-val: #2D5B4A;
+  --color-accent-clay-val: #C46A4A;
+  --color-border-warm-val: #E9E5DE;
+  color-scheme: light;
+}
+
+.dark {
+  --color-bg-warm-val: #0E1210;
+  --color-card-warm-val: #171C19;
+  --color-text-charcoal-val: #F3F5F4;
+  --color-text-soft-val: #9AA39E;
+  --color-accent-forest-val: #4EA380;
+  --color-accent-clay-val: #E07D63;
+  --color-border-warm-val: #252D29;
+  color-scheme: dark;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.99); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulseBorder {
+  0%, 100% { border-color: rgba(45, 91, 74, 0.2); }
+  50% { border-color: rgba(45, 91, 74, 0.5); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-border {
+  animation: pulseBorder 3s infinite ease-in-out;
+}
+
+@keyframes soundwave {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+.soundwave-bar {
+  display: inline-block;
+  width: 3px;
+  height: 16px;
+  background-color: var(--color-accent-clay);
+  border-radius: 9999px;
+  transform-origin: bottom;
+}
+
+.animate-soundwave-1 {
+  animation: soundwave 0.8s infinite ease-in-out;
+}
+.animate-soundwave-2 {
+  animation: soundwave 0.6s infinite ease-in-out 0.15s;
+}
+.animate-soundwave-3 {
+  animation: soundwave 0.9s infinite ease-in-out 0.3s;
+}
+.animate-soundwave-4 {
+  animation: soundwave 0.7s infinite ease-in-out 0.45s;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-warm);
+  color: var(--color-text-charcoal);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-sans);
+}
+
+.font-serif-editorial {
+  font-family: var(--font-serif);
+}
+
+/* Custom premium scrollbar styling matching warm theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-warm-val);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #B8C0BA;
+  border-radius: 9999px;
+  border: 1px solid var(--color-bg-warm-val);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #3A4440;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9AA39E;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4E5955;
+}
+
+/* Hide native browser password reveal eye icon (Edge, IE, Safari, Chrome) */
+input::-ms-reveal,
+input::-ms-clear,
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+
