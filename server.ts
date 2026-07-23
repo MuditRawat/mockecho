@@ -6,15 +6,30 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
 const app = express();
+
+// Configure CORS to allow requests from Vercel frontend or local development
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 app.use(express.json());
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+// Health check API endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // Lazy-initialized Gemini client to prevent server crash if key is missing
 let aiInstance: GoogleGenAI | null = null;
@@ -1127,7 +1142,7 @@ app.get("/auth/callback", async (req, res, next) => {
   }
 });
 
-// Serve frontend build and mount Vite middleware
+// Mount Vite middleware for development preview in AI Studio
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -1136,15 +1151,18 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+    // In production (Render standalone API mode), handle root endpoint
+    app.get("/", (req, res) => {
+      res.json({
+        name: "MockEcho API Server",
+        status: "online",
+        message: "Express backend API server is running."
+      });
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
