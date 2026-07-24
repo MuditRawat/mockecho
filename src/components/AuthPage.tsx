@@ -14,7 +14,7 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onBackToLanding, isRecoveryMode: propIsRecoveryMode }) => {
-  const { user, signUp, login, resetPassword, updatePassword, signInWithGoogle, error, clearError, demoMode, launchDemoMode, isRecoveryMode: appIsRecoveryMode, setIsRecoveryMode, resolvedTheme, setTheme } = useApp();
+  const { user, signUp, login, resetPassword, updatePassword, resendVerification, signInWithGoogle, error, clearError, demoMode, launchDemoMode, isRecoveryMode: appIsRecoveryMode, setIsRecoveryMode, resolvedTheme, setTheme } = useApp();
   const isRecovery = propIsRecoveryMode || appIsRecoveryMode;
 
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
@@ -114,6 +114,25 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBackToLanding, isRecoveryM
     setLoading(true);
     try {
       await signInWithGoogle();
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setLocalError('Please enter your email address to resend the verification link.');
+      return;
+    }
+    clearError();
+    setLocalError(null);
+    setSuccessMsg(null);
+    setLoading(true);
+    try {
+      await resendVerification(email);
+      setSuccessMsg(`Verification link sent! Please check your inbox at ${email}.`);
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -393,7 +412,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBackToLanding, isRecoveryM
                 {(localError || error) && (() => {
                   const errText = (localError || error || '').toLowerCase();
                   const isRateLimitErr = errText.includes('frequently') || errText.includes('too many') || errText.includes('limit');
-                  const isVerificationLinkErr = !isRateLimitErr && errText.includes('verification link');
+                  const isVerificationLinkErr = !isRateLimitErr && (errText.includes('verification link') || errText.includes('email not confirmed') || errText.includes('confirm your email') || errText.includes('unconfirmed') || errText.includes('verify your email'));
                   const isResetLinkErr = !isRateLimitErr && (isRecovery || errText.includes('reset link') || (errText.includes('expired') && !errText.includes('verification')));
                   const isAccountExistsErr = !isRateLimitErr && (errText.includes('account already exists') || errText.includes('already registered') || errText.includes('already exists'));
                   const isDifferentMethodErr = !isRateLimitErr && (errText.includes('different sign-in method') || errText.includes('different sign in method') || errText.includes('different method'));
@@ -448,36 +467,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBackToLanding, isRecoveryM
                       )}
 
                       {isVerificationLinkErr && (
-                        <div className="pt-0.5 flex flex-wrap items-center gap-2 border-t border-accent-clay/15 mt-1">
-                          {!isSignUp ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                clearError();
-                                setLocalError(null);
-                                setIsSignUp(true);
-                                setIsForgotPassword(false);
-                              }}
-                              className="inline-flex items-center text-accent-forest hover:text-accent-forest/80 font-bold underline transition duration-200 cursor-pointer text-xs"
-                              id="btn-request-new-verification"
-                            >
-                              Sign up for a new account
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                clearError();
-                                setLocalError(null);
-                                setIsSignUp(false);
-                                setIsForgotPassword(false);
-                              }}
-                              className="inline-flex items-center text-accent-forest hover:text-accent-forest/80 font-bold underline transition duration-200 cursor-pointer text-xs"
-                              id="btn-switch-to-signin-err"
-                            >
-                              Sign In
-                            </button>
-                          )}
+                        <div className="pt-1 flex flex-wrap items-center gap-2 border-t border-accent-clay/15 mt-1.5">
+                          <button
+                            type="button"
+                            onClick={handleResendVerification}
+                            className="inline-flex items-center text-accent-forest hover:text-accent-forest/80 font-bold underline transition duration-200 cursor-pointer text-xs"
+                            id="btn-request-new-verification"
+                          >
+                            Resend Verification Email
+                          </button>
+                          <span className="text-text-soft/40">•</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearError();
+                              setLocalError(null);
+                              setIsSignUp(false);
+                              setIsForgotPassword(false);
+                            }}
+                            className="inline-flex items-center text-accent-forest hover:text-accent-forest/80 font-bold underline transition duration-200 cursor-pointer text-xs"
+                            id="btn-switch-to-signin-err"
+                          >
+                            Sign In
+                          </button>
                         </div>
                       )}
 

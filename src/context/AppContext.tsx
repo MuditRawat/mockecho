@@ -31,6 +31,7 @@ interface AppContextType {
   login: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  resendVerification: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -141,7 +142,7 @@ const mapAuthError = (message: string, context?: AuthActionContext): string => {
     return 'Unable to sign in\nPlease check your email and password, or continue using the sign-in method you originally used.';
   }
   if (msgLower.includes('already registered') || msgLower.includes('user already exists') || msgLower.includes('already exists') || msgLower.includes('account already exists')) {
-    return 'An account already exists\nPlease sign in using the method you originally used to create this account.\nIf you signed up with a password, you can use Forgot Password if needed.';
+    return 'An account already exists\nAn account with this email address already exists. Please sign in using the method you originally used to create your account. If you created your account using a password, you can also use Forgot Password if needed.';
   }
   if (
     msgLower.includes('failed to fetch') ||
@@ -153,7 +154,7 @@ const mapAuthError = (message: string, context?: AuthActionContext): string => {
     return 'Something went wrong. Please check your internet connection and try again.';
   }
   if (msgLower.includes('email not confirmed') || msgLower.includes('confirm your email') || msgLower.includes('unconfirmed')) {
-    return 'Please verify your email address. We sent a verification link to your inbox.';
+    return 'Email not confirmed\nPlease verify your email address. We sent a verification link to your inbox. Please check your inbox or click Resend Verification below.';
   }
   if (msgLower.includes('signup is disabled') || msgLower.includes('signup_disabled')) {
     return 'Signups are currently disabled. Please contact the administrator or try again later.';
@@ -1137,6 +1138,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const resendVerification = async (emailToResend: string) => {
+    setLoading(true);
+    setError(null);
+    const cleanEmail = emailToResend.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError('Please enter your email address to resend verification.');
+      setLoading(false);
+      throw new Error('Please enter your email address.');
+    }
+
+    try {
+      if (isSupabaseConfigured) {
+        const originUrl = getRedirectOrigin();
+        const redirectUrl = `${originUrl}/auth/callback`;
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: cleanEmail,
+          options: {
+            emailRedirectTo: redirectUrl
+          }
+        });
+        if (error) throw error;
+      } else {
+        await new Promise(r => setTimeout(r, 400));
+      }
+    } catch (err: any) {
+      const friendlyMsg = mapAuthError(err.message || 'Failed to resend verification email.', 'resend_verification');
+      setError(friendlyMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updatePassword = async (newPassword: string) => {
     setError(null);
     try {
@@ -1901,6 +1936,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         login,
         resetPassword,
         updatePassword,
+        resendVerification,
         signInWithGoogle,
         logout,
         updateProfile,
