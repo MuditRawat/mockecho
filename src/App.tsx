@@ -607,7 +607,7 @@ function AppContent() {
     !window.location.hash.includes('type=invite') &&
     !window.location.hash.includes('type=recovery')
   );
-  const isOAuthPopup = typeof window !== 'undefined' && Boolean(window.opener) && isOAuthCallback;
+  const isOAuthPopup = typeof window !== 'undefined' && Boolean(window.opener) && (isOAuthCallback || window.location.pathname.includes('/auth/callback'));
 
   if (isRecoveryMode) {
     return (
