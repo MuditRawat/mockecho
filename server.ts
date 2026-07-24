@@ -86,11 +86,10 @@ async function generateContentWithRetry(
   },
   maxRetries = 2
 ) {
-  const primaryModel = params.model || "gemini-2.5-flash";
+  const primaryModel = params.model || "gemini-3.6-flash";
   const defaultFallbacks = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-3.6-flash"
+    "gemini-3.6-flash",
+    "gemini-3.1-flash-lite"
   ];
   // Ensure primary model is first, followed by unique fallback models
   const modelsToTry = Array.from(new Set([primaryModel, ...defaultFallbacks]));
