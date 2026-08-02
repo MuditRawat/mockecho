@@ -111,6 +111,16 @@ export const getDefaultVoice = (voices: SpeechSynthesisVoice[]): SpeechSynthesis
   const voiceList = voices && voices.length > 0 ? voices : getVoicesSync();
   if (!voiceList || voiceList.length === 0) return null;
 
+  // Mobile devices only: prefer English (United States) if available
+  if (getDeviceCategory() === 'mobile') {
+    const usVoice = voiceList.find(v => {
+      const l = (v.lang || '').toLowerCase();
+      const n = (v.name || '').toLowerCase();
+      return l === 'en-us' || l.startsWith('en-us') || l.startsWith('en_us') || n.includes('united states') || n.includes('us english') || n.includes('english (united states)');
+    });
+    if (usVoice) return usVoice;
+  }
+
   // Priority 1: Microsoft Neerja (if available in browser)
   const neerja = voiceList.find(v => v.name.toLowerCase().includes('neerja'));
   if (neerja) return neerja;
