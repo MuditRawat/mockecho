@@ -15,34 +15,37 @@ interface EvaluationLoadingProps {
 
 export const EvaluationLoading: React.FC<EvaluationLoadingProps> = ({ isReady, onComplete }) => {
   const [completedCount, setCompletedCount] = useState<number>(0);
-  const [hasFinishedMinSpin, setHasFinishedMinSpin] = useState<boolean>(false);
 
+  // Stages 0, 1, and 2 progress strictly sequentially with a 300ms minimum spinner duration each
   useEffect(() => {
-    if (isReady) {
-      setCompletedCount(4);
-      return;
-    }
     if (completedCount < 3) {
       const timer = setTimeout(() => {
         setCompletedCount((prev) => prev + 1);
-      }, 800);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [completedCount]);
+
+  // Stage 3 (Generating personalized feedback) is active (completedCount === 3).
+  // When isReady is true, transition Stage 3 to completed (completedCount = 4) after a brief 200ms window
+  // to ensure Stage 3's active spinner is rendered and painted before turning into a checkmark.
+  useEffect(() => {
+    if (completedCount === 3 && isReady) {
+      const timer = setTimeout(() => {
+        setCompletedCount(4);
+      }, 200);
       return () => clearTimeout(timer);
     }
   }, [completedCount, isReady]);
 
-  // When stage 3 is reached or isReady is true, mark as completed
-  useEffect(() => {
-    if ((completedCount === 3 || isReady) && completedCount < 4) {
-      if (isReady) {
-        setCompletedCount(4);
-      }
-    }
-  }, [completedCount, isReady]);
-
-  // Once all 4 stages are completed, trigger onComplete()
+  // Once all 4 stages are marked completed (completedCount === 4), pause for 150ms
+  // to ensure the browser paints the 4th checkmark before onComplete unmounts the component.
   useEffect(() => {
     if (completedCount === 4) {
-      onComplete();
+      const timer = setTimeout(() => {
+        onComplete();
+      }, 150);
+      return () => clearTimeout(timer);
     }
   }, [completedCount, onComplete]);
 

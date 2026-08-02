@@ -7,7 +7,6 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Mic, MicOff, Check, ArrowRight, Loader2, Volume2, VolumeX, AlertTriangle, RefreshCw } from 'lucide-react';
 import { InterviewQuestion, MCQOption, InterviewSession } from '../types';
-import { EvaluationLoading } from './EvaluationLoading';
 import { getSelectedVoice, filterEnglishVoices, ensureVoicesLoaded, getVoicesSync, applyVoiceToUtterance } from '../utils/voiceUtils';
 
 interface InterviewSessionProps {
@@ -46,8 +45,6 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const [transitionMessage, setTransitionMessage] = useState<string>('');
-  const [isFinishing, setIsFinishing] = useState<boolean>(false);
-  const [completedSessionData, setCompletedSessionData] = useState<InterviewSession | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Timers & Speech Refs
@@ -563,15 +560,9 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
         cancelSpeech();
         setCurrentIdx(prev => prev + 1);
       } else {
-        setIsFinishing(true);
-        finishSession(updatedSession)
-          .then((completedSession) => {
-            setCompletedSessionData(completedSession || null);
-          })
-          .catch((err) => {
-            console.error(err);
-            setIsFinishing(false);
-          });
+        const completedSession = await finishSession(updatedSession);
+        cancelSpeech();
+        onSessionFinished(completedSession || undefined);
       }
     } catch (err) {
       console.error(err);
@@ -585,19 +576,6 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     const remainingSecs = secs % 60;
     return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
   };
-
-  if (isFinishing) {
-    return (
-      <EvaluationLoading
-        isReady={!!completedSessionData}
-        onComplete={() => {
-          cancelSpeech();
-          setIsFinishing(false);
-          onSessionFinished(completedSessionData || undefined);
-        }}
-      />
-    );
-  }
 
   if (!activeSession || !question) {
     return (
@@ -930,7 +908,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
             {(evaluating || isSubmitting) ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                <span>{currentIdx === activeSession.questionCount - 1 ? "Submitting..." : "AI scoring..."}</span>
+                <span>{currentIdx === activeSession.questionCount - 1 ? "Analyzing Interview..." : "AI scoring..."}</span>
               </>
             ) : (
               <>

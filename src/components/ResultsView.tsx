@@ -119,7 +119,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
     );
   }
 
-  const readyToShow = !!feedback && minimumTimeElapsed;
+  const readyToShow = !!feedback;
 
   if (!readyToShow) {
     return (

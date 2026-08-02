@@ -101,7 +101,7 @@ function CreateInterviewRouteWrapper() {
 
   if (loading && !error && user) {
     return (
-      <div className="min-h-screen bg-bg-warm flex flex-col items-center justify-center text-center px-4 animate-fade-in" id="interview-preparing-loading-screen">
+      <div className="fixed inset-0 z-50 bg-bg-warm flex flex-col items-center justify-center text-center px-4 overflow-hidden animate-fade-in" id="interview-preparing-loading-screen">
         <div className="p-4 bg-accent-forest/5 border border-border-warm rounded-full flex items-center justify-center text-accent-forest mb-4">
           <MockEchoLogo size={36} animate={true} />
         </div>
@@ -158,7 +158,7 @@ function InterviewSessionRouteWrapper() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-warm flex flex-col items-center justify-center text-center px-4 animate-fade-in">
+      <div className="fixed inset-0 z-50 bg-bg-warm flex flex-col items-center justify-center text-center px-4 overflow-hidden animate-fade-in">
         <div className="p-4 bg-accent-forest/5 border border-border-warm rounded-full flex items-center justify-center text-accent-forest mb-4">
           <MockEchoLogo size={36} animate={true} />
         </div>
