@@ -18,37 +18,31 @@ export const EvaluationLoading: React.FC<EvaluationLoadingProps> = ({ isReady, o
   const [hasFinishedMinSpin, setHasFinishedMinSpin] = useState<boolean>(false);
 
   useEffect(() => {
+    if (isReady) {
+      setCompletedCount(4);
+      return;
+    }
     if (completedCount < 3) {
-      // For the first three stages, stay spinning for 1800ms, then complete the stage
       const timer = setTimeout(() => {
         setCompletedCount((prev) => prev + 1);
-      }, 1800);
-      return () => clearTimeout(timer);
-    } else if (completedCount === 3) {
-      // For the final stage, start a timer of 1800ms to ensure a brief display of its loading spinner
-      setHasFinishedMinSpin(false);
-      const timer = setTimeout(() => {
-        setHasFinishedMinSpin(true);
-      }, 1800);
+      }, 800);
       return () => clearTimeout(timer);
     }
-  }, [completedCount]);
+  }, [completedCount, isReady]);
 
-  // When stage 3 has finished its minimum spin duration AND the backend report is ready,
-  // mark the final stage as completed.
+  // When stage 3 is reached or isReady is true, mark as completed
   useEffect(() => {
-    if (completedCount === 3 && hasFinishedMinSpin && isReady) {
-      setCompletedCount(4);
+    if ((completedCount === 3 || isReady) && completedCount < 4) {
+      if (isReady) {
+        setCompletedCount(4);
+      }
     }
-  }, [completedCount, hasFinishedMinSpin, isReady]);
+  }, [completedCount, isReady]);
 
-  // Once all 4 stages are completed, wait 200ms and trigger onComplete()
+  // Once all 4 stages are completed, trigger onComplete()
   useEffect(() => {
     if (completedCount === 4) {
-      const timer = setTimeout(() => {
-        onComplete();
-      }, 200);
-      return () => clearTimeout(timer);
+      onComplete();
     }
   }, [completedCount, onComplete]);
 

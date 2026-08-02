@@ -559,16 +559,6 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
         transcriptionEdited
       );
 
-      const isMCQ = question.type === 'mcq_single' || question.type === 'mcq_multi';
-      if (isMCQ) {
-        const elapsed = Date.now() - startTime;
-        // Ultra-responsive, brief smoothing window (~400ms - 650ms) to prevent visual flashing while maintaining maximum responsiveness
-        const targetDuration = 400 + Math.floor(Math.random() * 250);
-        if (elapsed < targetDuration) {
-          await new Promise(resolve => setTimeout(resolve, targetDuration - elapsed));
-        }
-      }
-
       if (currentIdx < activeSession.questionCount - 1) {
         cancelSpeech();
         setCurrentIdx(prev => prev + 1);

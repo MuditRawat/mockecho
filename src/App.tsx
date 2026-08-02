@@ -118,9 +118,10 @@ function CreateInterviewRouteWrapper() {
   return (
     <CreateInterview
       onBackToDashboard={() => onExitClick('/dashboard')}
-      onSessionStarted={() => {
-        if (activeSession) {
-          navigate(`/interview/${activeSession.id}`);
+      onSessionStarted={(createdSession) => {
+        const session = createdSession || activeSession;
+        if (session) {
+          navigate(`/interview/${session.id}`);
         } else {
           navigate('/interview/active');
         }

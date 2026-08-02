@@ -7,9 +7,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Sparkles, Loader2, Play, Volume2, AlignLeft, ShieldAlert, ArrowLeft, Clock } from 'lucide-react';
 
+import { InterviewQuestion, InterviewSession } from '../types';
+
 interface CreateInterviewProps {
   onBackToDashboard: () => void;
-  onSessionStarted: () => void;
+  onSessionStarted: (createdSession?: InterviewSession) => void;
 }
 
 const targetRoles = [
@@ -196,7 +198,7 @@ export const CreateInterview: React.FC<CreateInterviewProps> = ({
         sessionStorage.setItem('just_started_interview', 'true');
       }
 
-      await startNewSession(
+      const createdSession = await startNewSession(
         role,
         subject,
         difficulty,
@@ -206,7 +208,7 @@ export const CreateInterview: React.FC<CreateInterviewProps> = ({
         durationSeconds,
         format
       );
-      onSessionStarted();
+      onSessionStarted(createdSession);
     } catch (err) {
       console.error(err);
     }
