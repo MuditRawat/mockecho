@@ -327,9 +327,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>(() => {
     if (typeof window !== 'undefined') {
-      const isExplicit = localStorage.getItem('mockecho_theme_explicit') === 'true';
       const stored = localStorage.getItem('mockecho_theme');
-      if (isExplicit && (stored === 'light' || stored === 'dark' || stored === 'system')) {
+      if (stored === 'light' || stored === 'dark' || stored === 'system') {
         return stored;
       }
     }
@@ -639,10 +638,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               setProfile(null);
               setInterviews([]);
               setLoading(false);
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('mockecho_theme');
-                localStorage.removeItem('mockecho_theme_explicit');
-              }
             }
           });
           subscription = data.subscription;
@@ -688,10 +683,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setProfile(null);
             setInterviews([]);
             setLoading(false);
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('mockecho_theme');
-              localStorage.removeItem('mockecho_theme_explicit');
-            }
           }
         });
         subscription = data.subscription;
@@ -871,22 +862,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         activeProfile = mapProfileFromDb(prof);
       }
 
-      // Migration for existing accounts that inherited default 'dark' without explicit user choice
-      const isExplicit = typeof window !== 'undefined' && localStorage.getItem('mockecho_theme_explicit') === 'true';
-      if (!isExplicit && activeProfile?.preferredTheme === 'dark') {
-        activeProfile.preferredTheme = 'system';
-        if (isSupabaseConfigured && authUser && authUser.id !== 'demo-user') {
-          supabase.from('profiles').update({ preferred_theme: 'system' }).eq('id', authUser.id).then(() => {});
-        }
-      }
+      // Theme synchronization across public and authenticated states
+      const storedExplicit = typeof window !== 'undefined' && localStorage.getItem('mockecho_theme_explicit') === 'true';
+      const storedTheme = typeof window !== 'undefined' ? (localStorage.getItem('mockecho_theme') as 'light' | 'dark' | 'system') : null;
 
-      setProfile(activeProfile);
-      if (activeProfile?.preferredTheme) {
+      if (storedExplicit && (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system')) {
+        // User explicitly set a theme on this client. Preserve it and sync to DB profile.
+        activeProfile.preferredTheme = storedTheme;
+        if (isSupabaseConfigured && authUser && authUser.id !== 'demo-user') {
+          supabase.from('profiles').update({ preferred_theme: storedTheme }).eq('id', authUser.id).then(() => {});
+        }
+        setThemeState(storedTheme);
+      } else if (activeProfile?.preferredTheme) {
+        if (activeProfile.preferredTheme === 'dark' && !storedExplicit) {
+          // Migration for existing legacy accounts that inherited default 'dark'
+          activeProfile.preferredTheme = 'system';
+          if (isSupabaseConfigured && authUser && authUser.id !== 'demo-user') {
+            supabase.from('profiles').update({ preferred_theme: 'system' }).eq('id', authUser.id).then(() => {});
+          }
+        }
         setThemeState(activeProfile.preferredTheme);
         if (typeof window !== 'undefined') {
           localStorage.setItem('mockecho_theme', activeProfile.preferredTheme);
         }
       }
+
+      setProfile(activeProfile);
 
       // 2. Fetch interviews list from Supabase
       const { data: list, error: listError } = await supabase
@@ -1443,10 +1444,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         localStorage.removeItem('mockecho_demo_launched');
         setUser(null);
         setProfile(null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('mockecho_theme');
-          localStorage.removeItem('mockecho_theme_explicit');
-        }
         return;
       }
       const { error } = await supabase.auth.signOut();
@@ -1454,10 +1451,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setUser(null);
       setProfile(null);
       setInterviews([]);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('mockecho_theme');
-        localStorage.removeItem('mockecho_theme_explicit');
-      }
     } catch (err: any) {
       setError(err.message || 'Logout failed.');
     } finally {
