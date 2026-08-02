@@ -72,6 +72,9 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
   const currentAnswerRef = useRef<string>('');
   const lastRestartTimeRef = useRef<number>(0);
   const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSpeechTimeRef = useRef<number>(0);
+  const sessionHasSpeechRef = useRef<boolean>(false);
+  const consecutiveSilentOnEndRef = useRef<number>(0);
 
   const startSTT = (overrideText?: string) => {
     if (!isSTTSupported || !recognitionRef.current || isAISpeakingRef.current) return;
@@ -81,6 +84,9 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
       const initial = overrideText !== undefined ? overrideText : userAnswer;
       baseTranscriptRef.current = initial;
       currentAnswerRef.current = initial;
+      sessionHasSpeechRef.current = false;
+      consecutiveSilentOnEndRef.current = 0;
+      lastSpeechTimeRef.current = Date.now();
       if (restartTimeoutRef.current) {
         clearTimeout(restartTimeoutRef.current);
         restartTimeoutRef.current = null;
@@ -102,6 +108,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     const isNonDesktop = getDeviceCategory() !== 'desktop';
     if (isNonDesktop) {
       shouldRecordRef.current = false;
+      consecutiveSilentOnEndRef.current = 0;
       if (restartTimeoutRef.current) {
         clearTimeout(restartTimeoutRef.current);
         restartTimeoutRef.current = null;
@@ -384,6 +391,10 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
       } else {
         // --- NON-DESKTOP (MOBILE / TABLET) LOGIC ---
         rec.onresult = (event: any) => {
+          sessionHasSpeechRef.current = true;
+          lastSpeechTimeRef.current = Date.now();
+          consecutiveSilentOnEndRef.current = 0;
+
           let sessionText = '';
           for (let i = 0; i < event.results.length; ++i) {
             const item = event.results[i];
@@ -411,6 +422,8 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
             shouldRecordRef.current = false;
             setIsRecording(false);
             setMicrophoneError(true);
+          } else if (e?.error === 'no-speech') {
+            consecutiveSilentOnEndRef.current += 1;
           }
         };
 
@@ -419,11 +432,24 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
             baseTranscriptRef.current = currentAnswerRef.current;
           }
 
-          if (shouldRecordRef.current && !isAISpeakingRef.current) {
-            const now = Date.now();
-            const timeSinceLast = now - lastRestartTimeRef.current;
+          if (!shouldRecordRef.current || isAISpeakingRef.current) {
+            setIsRecording(false);
+            return;
+          }
+
+          const now = Date.now();
+          const timeSinceLastSpeech = now - lastSpeechTimeRef.current;
+          const wasSpeakingRecently = sessionHasSpeechRef.current || timeSinceLastSpeech < 4000;
+
+          // Reset session speech marker for next potential chunk
+          sessionHasSpeechRef.current = false;
+
+          // Only restart if the user was actively speaking recently when mobile browser killed the session prematurely,
+          // and we haven't encountered repeated no-speech silence timeouts.
+          if (wasSpeakingRecently && consecutiveSilentOnEndRef.current < 2) {
+            const timeSinceLastRestart = now - lastRestartTimeRef.current;
             lastRestartTimeRef.current = now;
-            const delay = timeSinceLast < 200 ? 250 : 50;
+            const delay = timeSinceLastRestart < 300 ? 300 : 100;
 
             if (restartTimeoutRef.current) {
               clearTimeout(restartTimeoutRef.current);
@@ -451,6 +477,9 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
               }
             }, delay);
           } else {
+            // Natural pause / silence / ended after user finished speaking.
+            // Allow recording session to stop naturally without jarring restart loops.
+            shouldRecordRef.current = false;
             setIsRecording(false);
           }
         };
