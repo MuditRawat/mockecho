@@ -99,7 +99,13 @@ function CreateInterviewRouteWrapper() {
   const navigate = useNavigate();
   const { activeSession, loading, error, user } = useApp();
 
-  if (loading && !error && user) {
+  useEffect(() => {
+    if (activeSession && activeSession.status === 'pending') {
+      navigate(`/interview/${activeSession.id}`, { replace: true });
+    }
+  }, [activeSession, navigate]);
+
+  if ((loading || (activeSession && activeSession.status === 'pending')) && !error && user) {
     return (
       <div className="fixed inset-0 z-50 bg-bg-warm flex flex-col items-center justify-center text-center px-4 overflow-hidden animate-fade-in" id="interview-preparing-loading-screen">
         <div className="p-4 bg-accent-forest/5 border border-border-warm rounded-full flex items-center justify-center text-accent-forest mb-4">

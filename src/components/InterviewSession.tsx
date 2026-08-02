@@ -39,7 +39,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
   });
   const [voicesReady, setVoicesReady] = useState<boolean>(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return true;
-    return getVoicesSync().length > 0;
+    return true;
   });
 
   // Microphone / STT states
@@ -151,7 +151,11 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
 
       // If not granted yet, prompt for access when starting the Voice Interview
       if (!active) return;
-      setMicRequesting(true);
+      
+      const spinnerTimer = setTimeout(() => {
+        if (active) setMicRequesting(true);
+      }, 200);
+
       setMicrophoneError(false);
 
       try {
@@ -169,6 +173,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
           setMicGranted(false);
         }
       } finally {
+        clearTimeout(spinnerTimer);
         if (active) {
           setMicRequesting(false);
         }
