@@ -7,7 +7,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Mic, MicOff, Check, ArrowRight, Loader2, Volume2, VolumeX, AlertTriangle, RefreshCw } from 'lucide-react';
 import { InterviewQuestion, MCQOption, InterviewSession } from '../types';
-import { getSelectedVoice, filterEnglishVoices, ensureVoicesLoaded, getVoicesSync, applyVoiceToUtterance } from '../utils/voiceUtils';
+import { getSelectedVoice, filterEnglishVoices, ensureVoicesLoaded, getVoicesSync, applyVoiceToUtterance, getDeviceCategory } from '../utils/voiceUtils';
 
 interface InterviewSessionProps {
   onSessionFinished: (completedSession?: InterviewSession) => void;
@@ -65,6 +65,58 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
   const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const prevQuestionKeyRef = useRef<string | null>(null);
+
+  // Non-desktop STT tracking refs & control helpers
+  const shouldRecordRef = useRef<boolean>(false);
+  const baseTranscriptRef = useRef<string>('');
+  const currentAnswerRef = useRef<string>('');
+  const lastRestartTimeRef = useRef<number>(0);
+  const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startSTT = (overrideText?: string) => {
+    if (!isSTTSupported || !recognitionRef.current || isAISpeakingRef.current) return;
+    const isNonDesktop = getDeviceCategory() !== 'desktop';
+    if (isNonDesktop) {
+      shouldRecordRef.current = true;
+      const initial = overrideText !== undefined ? overrideText : userAnswer;
+      baseTranscriptRef.current = initial;
+      currentAnswerRef.current = initial;
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+        restartTimeoutRef.current = null;
+      }
+    }
+    try {
+      recognitionRef.current.start();
+      setIsRecording(true);
+    } catch (err: any) {
+      if (err?.name === 'InvalidStateError') {
+        setIsRecording(true);
+      } else {
+        console.warn('Failed to start speech recognition:', err);
+      }
+    }
+  };
+
+  const stopSTT = () => {
+    const isNonDesktop = getDeviceCategory() !== 'desktop';
+    if (isNonDesktop) {
+      shouldRecordRef.current = false;
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+        restartTimeoutRef.current = null;
+      }
+      if (currentAnswerRef.current) {
+        baseTranscriptRef.current = currentAnswerRef.current;
+      }
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+    }
+    setIsRecording(false);
+  };
 
   const cancelSpeech = () => {
     if (speechTimeoutRef.current) {
@@ -298,39 +350,121 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     if (!SpeechRecognition) {
       setIsSTTSupported(false);
     } else {
+      const isNonDesktop = getDeviceCategory() !== 'desktop';
       const rec = new SpeechRecognition();
       rec.continuous = true;
       rec.interimResults = true;
-      rec.lang = 'en-US';
+      rec.lang = typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'en-US';
 
-      rec.onresult = (event: any) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
+      if (!isNonDesktop) {
+        // --- DESKTOP LOGIC (100% UNCHANGED) ---
+        rec.onresult = (event: any) => {
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
           }
-        }
-        if (finalTranscript) {
-          setUserAnswer(prev => {
-            const separator = prev ? ' ' : '';
-            return prev + separator + finalTranscript.trim();
-          });
-        }
-      };
+          if (finalTranscript) {
+            setUserAnswer(prev => {
+              const separator = prev ? ' ' : '';
+              return prev + separator + finalTranscript.trim();
+            });
+          }
+        };
 
-      rec.onerror = (e: any) => {
-        console.error('Speech recognition error:', e);
-        setIsRecording(false);
-      };
+        rec.onerror = (e: any) => {
+          console.error('Speech recognition error:', e);
+          setIsRecording(false);
+        };
 
-      rec.onend = () => {
-        setIsRecording(false);
-      };
+        rec.onend = () => {
+          setIsRecording(false);
+        };
+      } else {
+        // --- NON-DESKTOP (MOBILE / TABLET) LOGIC ---
+        rec.onresult = (event: any) => {
+          let sessionText = '';
+          for (let i = 0; i < event.results.length; ++i) {
+            const item = event.results[i];
+            if (item && item[0]) {
+              const text = item[0].transcript || '';
+              if (sessionText && !sessionText.endsWith(' ') && !text.startsWith(' ')) {
+                sessionText += ' ';
+              }
+              sessionText += text;
+            }
+          }
+          const base = baseTranscriptRef.current ? baseTranscriptRef.current.trim() : '';
+          const addition = sessionText.trim();
+          let combined = base;
+          if (addition) {
+            combined = base ? `${base} ${addition}` : addition;
+          }
+          currentAnswerRef.current = combined;
+          setUserAnswer(combined);
+        };
+
+        rec.onerror = (e: any) => {
+          console.warn('Mobile speech recognition event info:', e?.error || e);
+          if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') {
+            shouldRecordRef.current = false;
+            setIsRecording(false);
+            setMicrophoneError(true);
+          }
+        };
+
+        rec.onend = () => {
+          if (currentAnswerRef.current) {
+            baseTranscriptRef.current = currentAnswerRef.current;
+          }
+
+          if (shouldRecordRef.current && !isAISpeakingRef.current) {
+            const now = Date.now();
+            const timeSinceLast = now - lastRestartTimeRef.current;
+            lastRestartTimeRef.current = now;
+            const delay = timeSinceLast < 200 ? 250 : 50;
+
+            if (restartTimeoutRef.current) {
+              clearTimeout(restartTimeoutRef.current);
+            }
+
+            restartTimeoutRef.current = setTimeout(() => {
+              if (shouldRecordRef.current && !isAISpeakingRef.current && recognitionRef.current) {
+                try {
+                  recognitionRef.current.start();
+                  setIsRecording(true);
+                } catch (err: any) {
+                  if (err?.name === 'InvalidStateError') {
+                    setIsRecording(true);
+                  } else {
+                    setTimeout(() => {
+                      if (shouldRecordRef.current && !isAISpeakingRef.current && recognitionRef.current) {
+                        try {
+                          recognitionRef.current.start();
+                          setIsRecording(true);
+                        } catch (e) {}
+                      }
+                    }, 300);
+                  }
+                }
+              }
+            }, delay);
+          } else {
+            setIsRecording(false);
+          }
+        };
+      }
 
       recognitionRef.current = rec;
     }
 
     return () => {
+      shouldRecordRef.current = false;
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+        restartTimeoutRef.current = null;
+      }
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -420,12 +554,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     setTranscriptionEdited(false);
 
     // Stop ongoing recognition if any
-    if (isRecording && recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-      setIsRecording(false);
-    }
+    stopSTT();
 
     // Track local time taken for this question
     if (questionTimerRef.current) clearInterval(questionTimerRef.current);
@@ -449,12 +578,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
       // After AI finishes speaking, automatically start candidate recording for subjective questions!
       if (activeSession.mode === 'voice' && question.type === 'subjective' && isSTTSupported && recognitionRef.current) {
         if (!isMuted && !isAISpeakingRef.current) {
-          try {
-            recognitionRef.current.start();
-            setIsRecording(true);
-          } catch (err) {
-            console.error('Failed to auto-start speech recognition after question speech:', err);
-          }
+          startSTT('');
         }
       }
     });
@@ -491,15 +615,9 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     if (!isSTTSupported || !recognitionRef.current || isAISpeakingRef.current) return;
 
     if (isRecording) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
+      stopSTT();
     } else {
-      try {
-        recognitionRef.current.start();
-        setIsRecording(true);
-      } catch (err) {
-        console.error('Failed to start speech recognition:', err);
-      }
+      startSTT();
     }
   };
 
@@ -508,21 +626,11 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     if (isMuted) {
       setIsMuted(false);
       if (question) {
-        if (isRecording && recognitionRef.current) {
-          try {
-            recognitionRef.current.stop();
-          } catch (e) {}
-          setIsRecording(false);
-        }
+        stopSTT();
         speakText(question.questionText, true, () => {
           if (activeSession?.mode === 'voice' && question.type === 'subjective' && isSTTSupported && recognitionRef.current) {
             if (!isMuted && !isAISpeakingRef.current) {
-              try {
-                recognitionRef.current.start();
-                setIsRecording(true);
-              } catch (err) {
-                console.error('Failed to start speech recognition after unmute speech:', err);
-              }
+              startSTT();
             }
           }
         });
@@ -530,6 +638,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     } else {
       setIsMuted(true);
       cancelSpeech();
+      stopSTT();
     }
   };
 
@@ -551,6 +660,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
   const handleSubmitResponse = async () => {
     if (!activeSession || !question || isSubmitting || evaluating) return;
 
+    stopSTT();
     setIsSubmitting(true);
     cancelSpeech();
 
@@ -729,21 +839,11 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
                 if (wasMuted) {
                   setIsMuted(false);
                 }
-                if (isRecording && recognitionRef.current) {
-                  try {
-                    recognitionRef.current.stop();
-                  } catch (e) {}
-                  setIsRecording(false);
-                }
+                stopSTT();
                 speakText(question.questionText, true, () => {
                   if (activeSession.mode === 'voice' && question.type === 'subjective' && isSTTSupported && recognitionRef.current) {
                     if (!isMuted && !isAISpeakingRef.current) {
-                      try {
-                        recognitionRef.current.start();
-                        setIsRecording(true);
-                      } catch (err) {
-                        console.error('Failed to start speech recognition after replay:', err);
-                      }
+                      startSTT();
                     }
                   }
                 }, wasMuted);
@@ -851,6 +951,10 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
                 onChange={(e) => {
                   setUserAnswer(e.target.value);
                   setTranscriptionEdited(true);
+                  if (getDeviceCategory() !== 'desktop') {
+                    baseTranscriptRef.current = e.target.value;
+                    currentAnswerRef.current = e.target.value;
+                  }
                 }}
                 className="w-full h-40 p-4.5 bg-bg-warm/50 border border-border-warm rounded-xl text-text-charcoal placeholder-text-soft/40 focus:outline-none focus:ring-1 focus:ring-accent-forest text-sm leading-relaxed transition-all font-sans disabled:opacity-60 disabled:cursor-not-allowed"
                 placeholder={
