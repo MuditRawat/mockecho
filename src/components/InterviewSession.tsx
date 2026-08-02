@@ -9,6 +9,50 @@ import { Mic, MicOff, Check, ArrowRight, Loader2, Volume2, VolumeX, AlertTriangl
 import { InterviewQuestion, MCQOption, InterviewSession } from '../types';
 import { getSelectedVoice, filterEnglishVoices, ensureVoicesLoaded, getVoicesSync, applyVoiceToUtterance, getDeviceCategory } from '../utils/voiceUtils';
 
+function normalizeWord(word: string): string {
+  return word.toLowerCase().replace(/^[.,!?:;()"'\s]+|[.,!?:;()"'\s]+$/g, '');
+}
+
+function mergeTranscripts(base: string, addition: string): string {
+  const trimmedBase = base.trim();
+  const trimmedAddition = addition.trim();
+
+  if (!trimmedBase) return trimmedAddition;
+  if (!trimmedAddition) return trimmedBase;
+
+  const baseWords = trimmedBase.split(/\s+/);
+  const additionWords = trimmedAddition.split(/\s+/);
+
+  const maxOverlap = Math.min(baseWords.length, additionWords.length);
+  let overlapCount = 0;
+
+  for (let k = maxOverlap; k >= 1; k--) {
+    let match = true;
+    for (let i = 0; i < k; i++) {
+      const w1 = normalizeWord(baseWords[baseWords.length - k + i]);
+      const w2 = normalizeWord(additionWords[i]);
+      if (w1 !== w2 || w1 === '') {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      overlapCount = k;
+      break;
+    }
+  }
+
+  if (overlapCount > 0) {
+    const remainingAddition = additionWords.slice(overlapCount);
+    if (remainingAddition.length === 0) {
+      return trimmedBase;
+    }
+    return `${trimmedBase} ${remainingAddition.join(' ')}`;
+  }
+
+  return `${trimmedBase} ${trimmedAddition}`;
+}
+
 interface InterviewSessionProps {
   onSessionFinished: (completedSession?: InterviewSession) => void;
   onCancel: () => void;
@@ -419,18 +463,13 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
             const item = event.results[i];
             if (item && item[0]) {
               const text = item[0].transcript || '';
-              if (sessionText && !sessionText.endsWith(' ') && !text.startsWith(' ')) {
-                sessionText += ' ';
+              if (text.trim()) {
+                sessionText = mergeTranscripts(sessionText, text);
               }
-              sessionText += text;
             }
           }
           const base = baseTranscriptRef.current ? baseTranscriptRef.current.trim() : '';
-          const addition = sessionText.trim();
-          let combined = base;
-          if (addition) {
-            combined = base ? `${base} ${addition}` : addition;
-          }
+          const combined = mergeTranscripts(base, sessionText);
           currentAnswerRef.current = combined;
           setUserAnswer(combined);
         };
