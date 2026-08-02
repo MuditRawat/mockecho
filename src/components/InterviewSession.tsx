@@ -74,6 +74,8 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
   const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSpeechTimeRef = useRef<number>(0);
+  const sessionHasSpeechRef = useRef<boolean>(false);
+  const lastErrorRef = useRef<string>('');
 
   const resetMobileSilenceTimer = () => {
     if (silenceTimeoutRef.current) {
@@ -94,6 +96,8 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     const isNonDesktop = getDeviceCategory() !== 'desktop';
     if (isNonDesktop) {
       shouldRecordRef.current = true;
+      sessionHasSpeechRef.current = false;
+      lastErrorRef.current = '';
       const initial = overrideText !== undefined ? overrideText : userAnswer;
       baseTranscriptRef.current = initial;
       currentAnswerRef.current = initial;
@@ -406,6 +410,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
       } else {
         // --- NON-DESKTOP (MOBILE / TABLET) LOGIC ---
         rec.onresult = (event: any) => {
+          sessionHasSpeechRef.current = true;
           lastSpeechTimeRef.current = Date.now();
           resetMobileSilenceTimer();
 
@@ -431,8 +436,10 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
         };
 
         rec.onerror = (e: any) => {
-          console.warn('Mobile speech recognition event info:', e?.error || e);
-          if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') {
+          const errType = e?.error || '';
+          lastErrorRef.current = errType;
+          console.warn('Mobile speech recognition event info:', errType || e);
+          if (errType === 'not-allowed' || errType === 'service-not-allowed') {
             shouldRecordRef.current = false;
             if (silenceTimeoutRef.current) {
               clearTimeout(silenceTimeoutRef.current);
@@ -449,6 +456,10 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
           }
 
           if (!shouldRecordRef.current || isAISpeakingRef.current) {
+            if (silenceTimeoutRef.current) {
+              clearTimeout(silenceTimeoutRef.current);
+              silenceTimeoutRef.current = null;
+            }
             setIsRecording(false);
             return;
           }
@@ -456,7 +467,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
           const now = Date.now();
           const silenceDuration = now - lastSpeechTimeRef.current;
 
-          // Only stop recording after 30 seconds of continuous silence
+          // 1. Check 30 seconds continuous silence timeout
           if (silenceDuration >= 30000) {
             shouldRecordRef.current = false;
             if (silenceTimeoutRef.current) {
@@ -467,37 +478,60 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
             return;
           }
 
-          // Otherwise, mobile browser auto-terminated recognition prematurely (e.g. mobile Safari 5s silence timeout).
-          // Silently restart recognition so natural pauses up to 30s stay active.
-          const timeSinceLastRestart = now - lastRestartTimeRef.current;
-          lastRestartTimeRef.current = now;
-          const delay = timeSinceLastRestart < 300 ? 300 : 100;
+          // 2. Check if recovery is genuinely required vs a normal silence event
+          const wasSpeechInChunk = sessionHasSpeechRef.current;
+          const speechWasRecent = silenceDuration < 3500;
+          const isUnexpectedInterruption =
+            lastErrorRef.current === 'aborted' ||
+            lastErrorRef.current === 'audio-capture' ||
+            lastErrorRef.current === 'network';
+          const isNormalSilenceEvent = lastErrorRef.current === 'no-speech' || (!wasSpeechInChunk && !speechWasRecent);
 
-          if (restartTimeoutRef.current) {
-            clearTimeout(restartTimeoutRef.current);
-          }
+          // Reset chunk markers for next session
+          sessionHasSpeechRef.current = false;
+          lastErrorRef.current = '';
 
-          restartTimeoutRef.current = setTimeout(() => {
-            if (shouldRecordRef.current && !isAISpeakingRef.current && recognitionRef.current) {
-              try {
-                recognitionRef.current.start();
-                setIsRecording(true);
-              } catch (err: any) {
-                if (err?.name === 'InvalidStateError') {
+          // Only restart if genuine recovery is required (user was actively speaking or interrupted)
+          if ((wasSpeechInChunk || speechWasRecent || isUnexpectedInterruption) && !isNormalSilenceEvent) {
+            const timeSinceLastRestart = now - lastRestartTimeRef.current;
+            lastRestartTimeRef.current = now;
+            const delay = timeSinceLastRestart < 300 ? 300 : 100;
+
+            if (restartTimeoutRef.current) {
+              clearTimeout(restartTimeoutRef.current);
+            }
+
+            restartTimeoutRef.current = setTimeout(() => {
+              if (shouldRecordRef.current && !isAISpeakingRef.current && recognitionRef.current) {
+                try {
+                  recognitionRef.current.start();
                   setIsRecording(true);
-                } else {
-                  setTimeout(() => {
-                    if (shouldRecordRef.current && !isAISpeakingRef.current && recognitionRef.current) {
-                      try {
-                        recognitionRef.current.start();
-                        setIsRecording(true);
-                      } catch (e) {}
-                    }
-                  }, 300);
+                } catch (err: any) {
+                  if (err?.name === 'InvalidStateError') {
+                    setIsRecording(true);
+                  } else {
+                    setTimeout(() => {
+                      if (shouldRecordRef.current && !isAISpeakingRef.current && recognitionRef.current) {
+                        try {
+                          recognitionRef.current.start();
+                          setIsRecording(true);
+                        } catch (e) {}
+                      }
+                    }, 300);
+                  }
                 }
               }
+            }, delay);
+          } else {
+            // Normal silence event or user finished speaking.
+            // Stop recording cleanly without continuous restart loop.
+            shouldRecordRef.current = false;
+            if (silenceTimeoutRef.current) {
+              clearTimeout(silenceTimeoutRef.current);
+              silenceTimeoutRef.current = null;
             }
-          }, delay);
+            setIsRecording(false);
+          }
         };
       }
 
