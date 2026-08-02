@@ -65,7 +65,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     : (hasOnlyOneSubject ? 'Continue practicing this topic' : 'Focus area for improvement');
 
   return (
-    <div className="space-y-8 animate-fade-in" id="dashboard-view-wrapper">
+    <div className="space-y-8" id="dashboard-view-wrapper">
       {/* Banner/Header */}
       <div className="relative overflow-hidden rounded-2xl bg-card-warm p-8 sm:p-10 border border-border-warm shadow-sm">
         <div className="relative z-10 max-w-2xl">

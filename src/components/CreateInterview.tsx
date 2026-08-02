@@ -215,7 +215,7 @@ export const CreateInterview: React.FC<CreateInterviewProps> = ({
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-fade-in pb-12" id="create-interview-wrapper">
+    <div className="max-w-3xl mx-auto space-y-8 pb-12" id="create-interview-wrapper">
       {/* Back Header */}
       <div className="flex items-center space-x-4">
         <button

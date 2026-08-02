@@ -160,7 +160,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onBackToDashboard }) =
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-fade-in pb-12" id="profile-container">
+    <div className="max-w-2xl mx-auto space-y-8 pb-12" id="profile-container">
       {/* Back Header */}
       <div className="flex items-center space-x-4">
         <button

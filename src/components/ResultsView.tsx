@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Award, ArrowLeft, CheckCircle2, XCircle, AlertCircle, BookOpen, BarChart3, ChevronDown, ChevronUp, Star, RefreshCw } from 'lucide-react';
@@ -30,6 +30,22 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const [visualStage, setVisualStage] = useState(isInitiallyCompleted ? 3 : 0);
   const [showReassuringMessage, setShowReassuringMessage] = useState(false);
   const [minimumTimeElapsed, setMinimumTimeElapsed] = useState(isInitiallyCompleted);
+
+  useLayoutEffect(() => {
+    const scrollToTop = () => {
+      window.scrollTo(0, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+      const mainElem = document.querySelector('main');
+      if (mainElem) {
+        mainElem.scrollTop = 0;
+      }
+    };
+
+    scrollToTop();
+    const rafId = requestAnimationFrame(scrollToTop);
+    return () => cancelAnimationFrame(rafId);
+  }, [session.id, !!feedback]);
 
   useEffect(() => {
     if (isInitiallyCompleted) return;
@@ -62,7 +78,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
 
   if (session.status === 'abandoned') {
     return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-card-warm border border-border-warm rounded-2xl shadow-sm text-center space-y-8 animate-fade-in" id="abandoned-interview-details">
+      <div className="max-w-md mx-auto my-12 p-8 bg-card-warm border border-border-warm rounded-2xl shadow-sm text-center space-y-8" id="abandoned-interview-details">
         <div className="mx-auto h-12 w-12 bg-accent-clay/10 border border-accent-clay/20 text-accent-clay rounded-xl flex items-center justify-center">
           <AlertCircle className="w-6 h-6" />
         </div>
@@ -123,7 +139,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
 
   if (!readyToShow) {
     return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-card-warm border border-border-warm rounded-2xl shadow-sm text-center space-y-8 animate-fade-in" id="evaluation-loading-container">
+      <div className="max-w-md mx-auto my-12 p-8 bg-card-warm border border-border-warm rounded-2xl shadow-sm text-center space-y-8" id="evaluation-loading-container">
         <div className="flex justify-center relative">
           <div className="relative flex items-center justify-center">
             {/* Outer spinning ring */}
@@ -299,7 +315,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const performance = getPerformanceBadge(feedback.averageScore, feedback.summaryText || feedback.summary);
 
   return (
-    <div className="space-y-8 animate-fade-in pb-16" id="results-view-wrapper">
+    <div className="space-y-8 pb-16" id="results-view-wrapper">
       {/* Header back button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">

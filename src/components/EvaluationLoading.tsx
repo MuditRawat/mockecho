@@ -50,7 +50,7 @@ export const EvaluationLoading: React.FC<EvaluationLoadingProps> = ({ isReady, o
   }, [completedCount, onComplete]);
 
   return (
-    <div className="min-h-[460px] flex flex-col items-center justify-center p-8 bg-card-warm border border-border-warm rounded-2xl shadow-sm space-y-8 animate-fade-in" id="evaluation-loading-container">
+    <div className="min-h-[460px] flex flex-col items-center justify-center p-8 bg-card-warm border border-border-warm rounded-2xl shadow-sm space-y-8" id="evaluation-loading-container">
       {/* Dynamic spinner area */}
       <div className="relative">
         <div className="absolute inset-0 bg-accent-forest/10 rounded-full blur-xl animate-pulse"></div>

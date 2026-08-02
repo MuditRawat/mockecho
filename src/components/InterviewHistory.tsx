@@ -93,7 +93,7 @@ export const InterviewHistory: React.FC<InterviewHistoryProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-16" id="history-container">
+    <div className="space-y-8 pb-16" id="history-container">
       {/* Header and Quick Stats */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

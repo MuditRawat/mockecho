@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams, useOutletContext, Outlet } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { LandingPage } from './components/LandingPage';
@@ -107,7 +107,7 @@ function CreateInterviewRouteWrapper() {
 
   if ((loading || (activeSession && activeSession.status === 'pending')) && !error && user) {
     return (
-      <div className="fixed inset-0 z-50 bg-bg-warm flex flex-col items-center justify-center text-center px-4 overflow-hidden animate-fade-in" id="interview-preparing-loading-screen">
+      <div className="fixed inset-0 z-50 bg-bg-warm flex flex-col items-center justify-center text-center px-4 overflow-hidden" id="interview-preparing-loading-screen">
         <div className="p-4 bg-accent-forest/5 border border-border-warm rounded-full flex items-center justify-center text-accent-forest mb-4">
           <MockEchoLogo size={36} animate={true} />
         </div>
@@ -164,7 +164,7 @@ function InterviewSessionRouteWrapper() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 bg-bg-warm flex flex-col items-center justify-center text-center px-4 overflow-hidden animate-fade-in">
+      <div className="fixed inset-0 z-50 bg-bg-warm flex flex-col items-center justify-center text-center px-4 overflow-hidden">
         <div className="p-4 bg-accent-forest/5 border border-border-warm rounded-full flex items-center justify-center text-accent-forest mb-4">
           <MockEchoLogo size={36} animate={true} />
         </div>
@@ -192,7 +192,7 @@ function ResultsViewRoute() {
 
   if (!session) {
     return (
-      <div className="text-center py-20 bg-card-warm border border-border-warm rounded-2xl space-y-4 shadow-sm max-w-md mx-auto animate-fade-in" id="report-not-found-container">
+      <div className="text-center py-20 bg-card-warm border border-border-warm rounded-2xl space-y-4 shadow-sm max-w-md mx-auto" id="report-not-found-container">
         <div className="mx-auto h-12 w-12 bg-accent-clay/5 border border-accent-clay/10 text-accent-clay rounded-xl flex items-center justify-center">
           <AlertCircle className="w-6 h-6" />
         </div>
@@ -255,6 +255,27 @@ function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Scroll to top on route change
+  useLayoutEffect(() => {
+    const scrollToTop = () => {
+      window.scrollTo(0, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+      if (mainRef.current) {
+        mainRef.current.scrollTop = 0;
+      } else {
+        const mainElem = document.querySelector('main');
+        if (mainElem) mainElem.scrollTop = 0;
+      }
+    };
+
+    scrollToTop();
+    const rafId = requestAnimationFrame(scrollToTop);
+    return () => cancelAnimationFrame(rafId);
+  }, [location.pathname]);
 
   // Protect browser reload / unload during active session
   useEffect(() => {
@@ -363,7 +384,7 @@ function AppLayout() {
     <div className="h-screen bg-bg-warm text-text-charcoal flex flex-col font-sans selection:bg-accent-forest selection:text-white overflow-hidden" id="main-app-root">
       {/* 0. LOCAL DEMO MODE ALERT BANNER */}
       {demoMode && (
-        <div className="bg-accent-clay/10 border-b border-accent-clay/20 text-accent-clay px-4 py-2.5 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 z-50 animate-fade-in" id="demo-mode-alert-banner">
+        <div className="bg-accent-clay/10 border-b border-accent-clay/20 text-accent-clay px-4 py-2.5 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 z-50" id="demo-mode-alert-banner">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 text-accent-clay shrink-0" />
             <span>
@@ -521,7 +542,7 @@ function AppLayout() {
         </AnimatePresence>
 
         {/* 3. CORE VIEWS DISPLAY PORT */}
-        <main className="flex-1 py-8 px-4 sm:px-8 max-w-7xl mx-auto w-full overflow-y-auto">
+        <main ref={mainRef} className="flex-1 py-8 px-4 sm:px-8 max-w-7xl mx-auto w-full overflow-y-auto">
           {profileError && (
             <div className="mb-6 p-4 bg-accent-clay/10 border border-accent-clay/20 rounded-xl flex items-start space-x-3 text-text-charcoal text-sm leading-relaxed" id="profile-error-banner">
               <AlertCircle className="w-5 h-5 shrink-0 text-accent-clay mt-0.5" />
@@ -541,7 +562,7 @@ function AppLayout() {
 
           <AnimatePresence mode="wait">
             <motion.div
-              key={getPageKey(location.pathname)}
+              key={location.pathname}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
