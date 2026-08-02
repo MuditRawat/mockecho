@@ -542,6 +542,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <div className="space-y-1">
             <div className="text-[10px] text-text-soft/80">The Technical Mock Panel Simulator</div>
             <div>© 2026 MockEcho. All rights reserved.</div>
+            <div className="text-[10px] text-text-soft/80">Developed by Mudit Rawat</div>
           </div>
         </div>
       </footer>
