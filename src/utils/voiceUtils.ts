@@ -8,6 +8,49 @@ export const isMobileBrowser = (): boolean => {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 };
 
+export const getDeviceCategory = (): 'mobile' | 'tablet' | 'desktop' => {
+  if (typeof navigator === 'undefined') return 'desktop';
+  const ua = navigator.userAgent;
+  const isTablet = /iPad|Tablet/i.test(ua) || (/Macintosh/i.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1);
+  if (isTablet) return 'tablet';
+  const isMobile = /Mobi|Android|iPhone|iPod/i.test(ua);
+  if (isMobile) return 'mobile';
+  return 'desktop';
+};
+
+export const getAdaptiveVoiceInfoMessage = (voiceCount: number): string => {
+  const deviceCategory = getDeviceCategory();
+
+  if (voiceCount <= 1) {
+    if (deviceCategory === 'mobile') {
+      return 'Note: This mobile browser exposes only one voice. Default system voice will be used for audio output.';
+    } else if (deviceCategory === 'tablet') {
+      return 'Note: This tablet browser exposes only one voice. Default system voice will be used for audio output.';
+    } else {
+      return 'Note: This browser exposes a single voice. Default system voice will be used for audio output.';
+    }
+  }
+
+  // Multiple voices available (> 1)
+  if (deviceCategory === 'mobile') {
+    if (voiceCount <= 5) {
+      return 'Note: Mobile browsers expose a limited set of voices depending on your Android/iOS Text-to-Speech settings.';
+    }
+    return 'Note: Available voices on mobile depend on your browser and operating system Text-to-Speech settings.';
+  } else if (deviceCategory === 'tablet') {
+    if (voiceCount <= 5) {
+      return 'Note: Tablet browsers expose a limited set of voices depending on device speech settings.';
+    }
+    return 'Note: Available voices on tablet depend on your browser and operating system speech engines.';
+  } else {
+    // Desktop / Laptop
+    if (voiceCount > 10) {
+      return 'Note: Broad voice selection available in this desktop browser.';
+    }
+    return 'Note: Available voices on desktop depend on your operating system and installed speech synthesis engines.';
+  }
+};
+
 export const applyVoiceToUtterance = (
   utterance: SpeechSynthesisUtterance,
   voiceToUse: SpeechSynthesisVoice | null
