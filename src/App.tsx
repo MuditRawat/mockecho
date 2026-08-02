@@ -121,9 +121,9 @@ function CreateInterviewRouteWrapper() {
       onSessionStarted={(createdSession) => {
         const session = createdSession || activeSession;
         if (session) {
-          navigate(`/interview/${session.id}`);
+          navigate(`/interview/${session.id}`, { replace: true });
         } else {
-          navigate('/interview/active');
+          navigate('/interview/active', { replace: true });
         }
       }}
     />
@@ -346,6 +346,13 @@ function AppLayout() {
 
   const isCurrent = (path: string) => location.pathname === path;
 
+  const getPageKey = (pathname: string) => {
+    if (pathname === '/interview/new' || (pathname.startsWith('/interview/') && !pathname.endsWith('/results'))) {
+      return 'active-interview-flow';
+    }
+    return pathname;
+  };
+
   return (
     <div className="h-screen bg-bg-warm text-text-charcoal flex flex-col font-sans selection:bg-accent-forest selection:text-white overflow-hidden" id="main-app-root">
       {/* 0. LOCAL DEMO MODE ALERT BANNER */}
@@ -528,7 +535,7 @@ function AppLayout() {
 
           <AnimatePresence mode="wait">
             <motion.div
-              key={location.pathname}
+              key={getPageKey(location.pathname)}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}

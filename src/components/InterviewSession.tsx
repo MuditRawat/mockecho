@@ -28,9 +28,19 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
   const [transcriptionEdited, setTranscriptionEdited] = useState<boolean>(false);
 
   // Speech & Voice States
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [voicesReady, setVoicesReady] = useState<boolean>(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>(() => {
+    return typeof window !== 'undefined' ? getVoicesSync() : [];
+  });
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const voices = getVoicesSync();
+    const englishVoices = filterEnglishVoices(voices);
+    return getSelectedVoice(englishVoices, profile?.preferredVoice);
+  });
+  const [voicesReady, setVoicesReady] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return true;
+    return getVoicesSync().length > 0;
+  });
 
   // Microphone / STT states
   const [micGranted, setMicGranted] = useState<boolean>(false);
@@ -599,7 +609,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in pb-12" id="interview-session-container">
+    <div className="max-w-3xl mx-auto space-y-6 pb-12" id="interview-session-container">
       {/* Top Session Progress Bar */}
       <div className="flex items-center justify-between bg-card-warm px-5 py-4 rounded-2xl border border-border-warm shadow-sm flex-wrap gap-4">
         <div className="flex flex-col space-y-1.5 flex-1 min-w-[200px] max-w-[280px]">
