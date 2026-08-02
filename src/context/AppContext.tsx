@@ -412,6 +412,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const loadedUserIdRef = useRef<string | null>(null);
+  const oauthSuccessRef = useRef<boolean>(false);
+  const userRef = useRef<any>(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const clearError = () => setError(null);
 
@@ -721,6 +727,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       if (event.data?.type === 'SUPABASE_OAUTH_SUCCESS') {
+        oauthSuccessRef.current = true;
+        setError(null);
         const session = event.data.session;
         if (session) {
           setLoading(true);
@@ -1201,6 +1209,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const signInWithGoogle = async () => {
+    oauthSuccessRef.current = false;
     setLoading(true);
     setError(null);
     
@@ -1400,8 +1409,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const checkPopupClosed = setInterval(() => {
         if (popup.closed) {
           clearInterval(checkPopupClosed);
+          if (oauthSuccessRef.current || userRef.current) {
+            console.log("Google OAuth completed successfully. Popup closed.");
+            return;
+          }
           setLoading(currentLoading => {
-            if (currentLoading) {
+            if (currentLoading && !oauthSuccessRef.current && !userRef.current) {
               console.log("Google OAuth popup closed by user before completion.");
               setError('Google login was cancelled.');
               return false;
@@ -1409,7 +1422,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return currentLoading;
           });
         }
-      }, 1000);
+      }, 500);
     } catch (err: any) {
       if (popup) {
         try {

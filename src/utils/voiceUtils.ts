@@ -3,6 +3,40 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export const isMobileBrowser = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+};
+
+export const applyVoiceToUtterance = (
+  utterance: SpeechSynthesisUtterance,
+  voiceToUse: SpeechSynthesisVoice | null
+) => {
+  if (!voiceToUse) return;
+
+  // On Android Chrome/Edge/WebView, speechSynthesis requires setting BOTH utterance.voice
+  // AND utterance.lang. Without setting utterance.lang matching voice.lang, Android TTS engine
+  // ignores utterance.voice and falls back to the device's default system voice.
+  // Furthermore, lookup against live getVoices() ensures native reference pointer matching.
+  let targetVoice = voiceToUse;
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    const liveVoices = window.speechSynthesis.getVoices();
+    if (liveVoices && liveVoices.length > 0) {
+      const match = liveVoices.find(
+        v => v.name === voiceToUse.name || (v.voiceURI && v.voiceURI === voiceToUse.voiceURI)
+      );
+      if (match) {
+        targetVoice = match;
+      }
+    }
+  }
+
+  utterance.voice = targetVoice;
+  if (targetVoice.lang) {
+    utterance.lang = targetVoice.lang;
+  }
+};
+
 let cachedVoices: SpeechSynthesisVoice[] = [];
 
 export const updateCachedVoices = (): SpeechSynthesisVoice[] => {

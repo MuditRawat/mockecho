@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { User, Target, Save, Loader2, ArrowLeft, RefreshCw, CheckCircle2, Sun, Moon, Laptop, Play, ChevronDown, RotateCcw, X } from 'lucide-react';
-import { getDefaultVoice, getSelectedVoice, filterEnglishVoices, ensureVoicesLoaded, getVoicesSync } from '../utils/voiceUtils';
+import { getDefaultVoice, getSelectedVoice, filterEnglishVoices, ensureVoicesLoaded, getVoicesSync, isMobileBrowser, applyVoiceToUtterance } from '../utils/voiceUtils';
 
 interface ProfileViewProps {
   onBackToDashboard: () => void;
@@ -78,7 +78,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onBackToDashboard }) =
     const utterance = new SpeechSynthesisUtterance(sampleText);
     utterance.rate = 0.95;
     if (voiceToUse) {
-      utterance.voice = voiceToUse;
+      applyVoiceToUtterance(utterance, voiceToUse);
     }
 
     utterance.onend = () => {
@@ -314,6 +314,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onBackToDashboard }) =
                 {!isVoiceAvailableInCurrentBrowser && (
                   <span className="text-[11px] text-amber-700 dark:text-amber-400 block font-sans font-medium">
                     Note: Saved voice "{preferredVoice}" is unavailable in this browser. Automatically using active browser fallback: <strong>{activeVoice?.name || 'Default'}</strong>.
+                  </span>
+                )}
+                {isMobileBrowser() && (
+                  <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80 block font-sans font-medium">
+                    {englishVoices.length <= 1
+                      ? 'Note: This mobile browser exposes a single voice. Default system voice will be used for audio output.'
+                      : 'Note: Speech rendering on mobile devices depends on your browser and Android Text-to-Speech settings.'}
                   </span>
                 )}
                 <span className="text-[10px] text-text-soft block font-mono">

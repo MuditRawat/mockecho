@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext';
 import { Mic, MicOff, Check, ArrowRight, Loader2, Volume2, VolumeX, AlertTriangle, RefreshCw } from 'lucide-react';
 import { InterviewQuestion, MCQOption, InterviewSession } from '../types';
 import { EvaluationLoading } from './EvaluationLoading';
-import { getSelectedVoice, filterEnglishVoices, ensureVoicesLoaded, getVoicesSync } from '../utils/voiceUtils';
+import { getSelectedVoice, filterEnglishVoices, ensureVoicesLoaded, getVoicesSync, applyVoiceToUtterance } from '../utils/voiceUtils';
 
 interface InterviewSessionProps {
   onSessionFinished: (completedSession?: InterviewSession) => void;
@@ -238,7 +238,7 @@ export const InterviewSessionComponent: React.FC<InterviewSessionProps> = ({
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.95;
     if (voiceToUse) {
-      utterance.voice = voiceToUse;
+      applyVoiceToUtterance(utterance, voiceToUse);
       setSelectedVoice(voiceToUse);
     }
 
